@@ -3,10 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SO Report Generator</title>
-  <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#1a73e8" />
-
+  <title>Aplikasi Cek Selisih</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -14,87 +11,90 @@
       background: #f5f5f5;
     }
     .container {
-      max-width: 480px;
-      margin: auto;
-      background: #fff;
+      background: white;
       padding: 20px;
       border-radius: 10px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      max-width: 500px;
+      margin: auto;
     }
-    input, button {
+    input {
       width: 100%;
-      padding: 12px;
-      margin: 10px 0;
-      border-radius: 8px;
+      padding: 10px;
+      margin-top: 10px;
       border: 1px solid #ccc;
-      font-size: 16px;
+      border-radius: 5px;
     }
     button {
-      background: #1a73e8;
+      margin-top: 15px;
+      width: 100%;
+      padding: 12px;
+      border: none;
+      background: #007bff;
       color: white;
+      border-radius: 5px;
       cursor: pointer;
+      font-size: 16px;
     }
-    button:hover {
-      background: #155fc0;
+    #refreshBtn {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #28a745;
+      padding: 12px 18px;
+      border-radius: 50px;
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
     }
     iframe {
       width: 100%;
-      height: 500px;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      margin-top: 15px;
+      height: 600px;
+      border: none;
+      margin-top: 20px;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>SO Report Generator</h2>
-
-    <label>Tanggal Periode (DD-MM-YYYY)</label>
-    <input type="text" id="dateSo" placeholder="27-11-2025" />
+    <h2>Aplikasi Cek Selisih</h2>
 
     <label>Kode Toko</label>
-    <input type="text" id="storeId" placeholder="L257" />
+    <input type="text" id="kodeToko" placeholder="Contoh: L257" />
 
     <button onclick="generateLink()">Cek Selisih</button>
 
-    <button id="refreshBtn" style="display:none; background:#28a745;" onclick="refreshIframe()">Refresh Tampilan</button>
-
-    <iframe id="resultFrame" src="" style="display:none;"></iframe>
+    <iframe id="resultFrame"></iframe>
   </div>
 
+  <div id="refreshBtn" onclick="refreshIframe()">Refresh</div>
 
   <script>
-    function generateLink() {
-      const storeId = document.getElementById("storeId").value;
-      const dateSo = document.getElementById("dateSo").value;
+    function getToday() {
+      const t = new Date();
+      const d = String(t.getDate()).padStart(2, '0');
+      const m = String(t.getMonth() + 1).padStart(2, '0');
+      const y = t.getFullYear();
+      return `${d}-${m}-${y}`;
+    }
 
-      if (!storeId || !dateSo) {
-        alert("Store ID dan Tanggal harus diisi!");
+    function generateLink() {
+      const store = document.getElementById('kodeToko').value.trim();
+      if (!store) {
+        alert('Kode toko wajib diisi!');
         return;
       }
 
-      const url = `https://app.alfastore.co.id/prd/api/rpt/laporan_so/csel_last_so_absolute_desc?storeId=${storeId}&dateSo=${dateSo}`;
+      const today = getToday();
 
-      const iframe = document.getElementById("resultFrame");
-      iframe.src = url;
-      iframe.style.display = "block";
+      const finalUrl = `https://app.alfastore.co.id/prd/api/rpt/laporan_so/csel_last_so_absolute_desc?storeId=${store}&dateSo=${today}`;
 
-      document.getElementById("refreshBtn").style.display = "block";
+      document.getElementById('resultFrame').src = finalUrl;
     }
 
     function refreshIframe() {
-      const iframe = document.getElementById("resultFrame");
-      iframe.src = iframe.src;
-    }
-
-    // Register Service Worker
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", function () {
-        navigator.serviceWorker.register("service-worker.js")
-          .then(() => console.log("SW Registered"))
-          .catch(err => console.log("SW Error", err));
-      });
+      const frame = document.getElementById('resultFrame');
+      frame.src = frame.src;
     }
   </script>
 </body>
