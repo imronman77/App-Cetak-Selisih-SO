@@ -1,133 +1,170 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SO Report App - Login</title>
-  <style>
-    body { font-family: Arial, sans-serif; background:#f5f5f5; padding:20px; }
-    .container { max-width:420px; margin:auto; background:#fff; padding:20px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
-    input, button { width:100%; padding:12px; margin:10px 0; border-radius:8px; border:1px solid #ccc; font-size:16px; }
-    button { background:#1a73e8; color:#fff; cursor:pointer; }
-    #dashboard { display:none; }
-    iframe { width:100%; height:500px; border:1px solid #ccc; border-radius:8px; margin-top:15px; }
-    #refreshBtn { position:fixed; bottom:25px; right:25px; background:#28a745; color:white; padding:15px; border-radius:50%; font-size:20px; display:none; }
-  </style>
-</head>
-<body>
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Loader2, RefreshCw } from "lucide-react";
+import { motion } from "framer-motion";
 
-  <!-- LOGIN FORM -->
-  <div class="container" id="loginBox">
-    <h2>Login</h2>
-    <input type="email" id="email" placeholder="Email" />
-    <input type="password" id="password" placeholder="Password" />
-    <button onclick="loginUser()">Login</button>
-  </div>
+export default function App() {
+  const [username, setUsername] = useState("");
+  const [storedUser, setStoredUser] = useState(null);
+  const [kodeToko, setKodeToko] = useState("");
+  const [url, setUrl] = useState(null);
+  const [showQris, setShowQris] = useState(false);
+  const [qrisData, setQrisData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [paid, setPaid] = useState(false);
 
-  <!-- DASHBOARD -->
-  <div class="container" id="dashboard">
-    <h2>Cek Selisih</h2>
+  useEffect(() => {
+    const saved = localStorage.getItem("csel_user");
+    if (saved) setStoredUser(saved);
+  }, []);
 
-    <p>Saldo: <b id="saldoView">0</b></p>
+  useEffect(() => {
+    // when user logged in, prefill kodeToko with their username and lock it
+    if (storedUser) setKodeToko(storedUser);
+  }, [storedUser]);
 
-    <input type="text" id="storeId" placeholder="Kode Toko (ex: L257)" />
-    <button onclick="cekSelisih()">Cek Selisih</button>
+  const handleRegisterLogin = () => {
+    if (!username) return;
+    const upper = username.toUpperCase();
+    localStorage.setItem("csel_user", upper);
+    setStoredUser(upper);
+  };
 
-    <iframe id="resultFrame" src=""></iframe>
-    <button onclick="logout()" style="background:#d9534f; color:white; margin-top:10px;">Logout</button>
-  </div>
+  // Generate QRIS invoice via backend API (Xendit)
+  const handleGenerate = async () => {
+    if (!kodeToko) return;
+    setLoading(true);
 
-  <button id="refreshBtn" onclick="refreshIframe()">⟳</button>
+    const today = new Date();
+    const formatted = today.toLocaleDateString("id-ID").replaceAll("/", "-");
+    const final = `https://app.alfastore.co.id/prd/api/rpt/laporan_so/csel_last_so_absolute_desc?storeId=${kodeToko.toUpperCase()}&dateSo=${formatted}`;
+    setUrl(final);
 
+    try {
+      const res = await fetch('/api/create-xendit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: storedUser, amount: 5000, storeId: kodeToko.toUpperCase() })
+      });
+      const data = await res.json();
+      // expected { qrImage, paymentId }
+      setQrisData(data);
+      setShowQris(true);
+      // start polling will be handled by effect below
+    } catch (err) {
+      console.error(err);
+      alert('Gagal membuat invoice. Coba lagi.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-<script>
-// ✦ MASUKKAN DATA SUPABASE MILIKMU DI SINI ✦
-const SUPABASE_URL = "https://suwboogentimkkwcfgde.supabase.co";
-const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1d2Jvb2dlbnRpbWtrd2NmZ2RlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyNjI0NjMsImV4cCI6MjA3OTgzODQ2M30.DvwBP6rFFhQ-qJRoJGAWh-mAhHyoykKueZ3SboQcwtg";
+  // Polling to check payment status (fallback if webhook delayed)
+  useEffect(() => {
+    if (!qrisData?.paymentId) return;
+    let interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/payment-status?paymentId=${qrisData.paymentId}`);
+        const s = await res.json();
+        // expected { status: 'PAID' | 'PENDING' }
+        if (s.status === 'PAID') {
+          setPaid(true);
+          setShowQris(false);
+          clearInterval(interval);
+        }
+      } catch (e) {
+        console.error('status check error', e);
+      }
+    }, 3000);
 
-// LOGIN USER
-async function loginUser() {
-  const email = document.getElementById("email").value;
-  const pass = document.getElementById("password").value;
+    return () => clearInterval(interval);
+  }, [qrisData]);
 
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/users?email=eq.${email}`, {
-    headers: { "apikey": SUPABASE_KEY }
-  });
+  useEffect(() => {
+    if (paid && url) {
+      // show the iframe automatically when paid
+      setShowQris(false);
+    }
+  }, [paid, url]);
 
-  const data = await res.json();
+  const handleRefresh = () => {
+    if (url) setUrl(url + "");
+  };
 
-  if (data.length === 0) {
-    alert("Email tidak ditemukan");
-    return;
+  if (!storedUser) {
+    return (
+      <div className="h-screen flex items-center justify-center p-4">
+        <Card className="p-6 w-full max-w-sm shadow-xl rounded-2xl">
+          <CardContent>
+            <h2 className="text-xl font-bold mb-4 text-center">Login / Registrasi</h2>
+            <Input
+              placeholder="Masukkan Kode Toko"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              className="mb-4"
+            />
+            <Button className="w-full" onClick={handleRegisterLogin}>Lanjut</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
-  if (data[0].password !== pass) {
-    alert("Password salah");
-    return;
-  }
+  return (
+    <div className="p-4 pb-20">
+      <Card className="p-6 max-w-xl mx-auto rounded-2xl shadow-xl mb-6">
+        <CardContent>
+          <h2 className="text-xl font-bold mb-4">Cetak Selisih</h2>
+          <p className="text-sm opacity-70 mb-3">User: {storedUser}</p>
+          <Input
+            placeholder="Masukkan Kode Toko"
+            value={kodeToko}
+            onChange={(e) => setKodeToko(e.target.value)}
+            disabled={true}
+            className="mb-3"
+          />
+          <Button className="w-full" onClick={handleGenerate} disabled={loading || paid}>
+            {loading ? <Loader2 className="animate-spin" /> : paid ? "Sudah Terbayar" : "Cek Selisih (Rp 5.000)"}
+          </Button>
+        </CardContent>
+      </Card>
 
-  localStorage.setItem("userid", data[0].id);
-  localStorage.setItem("saldo", data[0].saldo);
+      {showQris && qrisData && (
+        <motion.div className="max-w-xl mx-auto p-6 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <h3 className="font-semibold mb-3">Silahkan bayar Rp 5.000</h3>
+          <img src={qrisData.qrImage} alt="QRIS Pembayaran" className="w-64 mx-auto rounded-xl shadow" />
+          <p className="text-sm opacity-70 mt-3">Menunggu konfirmasi otomatis... (webhook)</p>
+          <Button className="mt-4 w-full" onClick={async () => {
+            // fallback: manual status check
+            try {
+              const res = await fetch(`/api/payment-status?paymentId=${qrisData.paymentId}`);
+              const s = await res.json();
+              if (s.status === 'PAID') {
+                setPaid(true);
+                setShowQris(false);
+              } else alert('Belum terbayar');
+            } catch (e) { alert('Error cek status'); }
+          }}>Cek Sekarang</Button>
+        </motion.div>
+      )}
 
-  showDashboard(){
-  if(!localStorage.getItem("userid")) return;
-  document.getElementById("loginBox").style.display="none";
-  document.getElementById("dashboard").style.display="block";
-  document.getElementById("saldoView").innerText = localStorage.getItem("saldo");
-}();
+      {paid && url && (
+        <motion.div className="max-w-4xl mx-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+          <iframe src={url} className="w-full h-[70vh] rounded-xl shadow-lg"></iframe>
+        </motion.div>
+      )}
+
+      {url && (
+        <motion.button
+          onClick={handleRefresh}
+          className="fixed bottom-6 right-6 p-4 rounded-full shadow-xl bg-white"
+          whileTap={{ scale: 0.85 }}
+        >
+          <RefreshCw />
+        </motion.button>
+      )}
+    </div>
+  );
 }
-
-function showDashboard() {
-  document.getElementById("loginBox").style.display = "none";
-  document.getElementById("dashboard").style.display = "block";
-  document.getElementById("saldoView").innerText = localStorage.getItem("saldo");
-}
-
-// CEK SELISIH
-async function cekSelisih() {
-  const userId = localStorage.getItem("userid");
-  let saldo = parseInt(localStorage.getItem("saldo"));
-  const storeId = document.getElementById("storeId").value;
-
-  if (!storeId) return alert("Isi kode toko!");
-
-  if (saldo <= 0) return alert("Saldo habis, silakan top up.");
-
-  saldo -= 1;
-  localStorage.setItem("saldo", saldo);
-  document.getElementById("saldoView").innerText = saldo;
-
-  await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}`, {
-    method: "PATCH",
-    headers: {
-      "apikey": SUPABASE_KEY,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ saldo: saldo })
-  });
-
-  const today = new Date();
-  const dd = String(today.getDate()).padStart(2, '0');
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  const yyyy = today.getFullYear();
-  const dateSo = `${dd}-${mm}-${yyyy}`;
-
-  const url = `https://app.alfastore.co.id/prd/api/rpt/laporan_so/csel_last_so_absolute_desc?storeId=${storeId}&dateSo=${dateSo}`;
-
-  const iframe = document.getElementById("resultFrame");
-  iframe.src = url;
-  document.getElementById("refreshBtn").style.display = "block";
-}
-
-function refreshIframe() {
-  const iframe = document.getElementById("resultFrame");
-  iframe.src = iframe.src;
-}
-function logout(){
-  localStorage.clear();
-  location.reload();
-}
-</script>
-
-</body>
-</html>
