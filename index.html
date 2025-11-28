@@ -3,99 +3,131 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Aplikasi Cek Selisih</title>
+  <title>SO Report App - Login</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-      background: #f5f5f5;
-    }
-    .container {
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.1);
-      max-width: 500px;
-      margin: auto;
-    }
-    input {
-      width: 100%;
-      padding: 10px;
-      margin-top: 10px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-    }
-    button {
-      margin-top: 15px;
-      width: 100%;
-      padding: 12px;
-      border: none;
-      background: #007bff;
-      color: white;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 16px;
-    }
-    #refreshBtn {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      background: #28a745;
-      padding: 12px 18px;
-      border-radius: 50px;
-      color: white;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    iframe {
-      width: 100%;
-      height: 600px;
-      border: none;
-      margin-top: 20px;
-    }
+    body { font-family: Arial, sans-serif; background:#f5f5f5; padding:20px; }
+    .container { max-width:420px; margin:auto; background:#fff; padding:20px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1); }
+    input, button { width:100%; padding:12px; margin:10px 0; border-radius:8px; border:1px solid #ccc; font-size:16px; }
+    button { background:#1a73e8; color:#fff; cursor:pointer; }
+    #dashboard { display:none; }
+    iframe { width:100%; height:500px; border:1px solid #ccc; border-radius:8px; margin-top:15px; }
+    #refreshBtn { position:fixed; bottom:25px; right:25px; background:#28a745; color:white; padding:15px; border-radius:50%; font-size:20px; display:none; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h2>Aplikasi Cek Selisih</h2>
 
-    <label>Kode Toko</label>
-    <input type="text" id="kodeToko" placeholder="Contoh: L257" />
-
-    <button onclick="generateLink()">Cek Selisih</button>
-
-    <iframe id="resultFrame"></iframe>
+  <!-- LOGIN FORM -->
+  <div class="container" id="loginBox">
+    <h2>Login</h2>
+    <input type="email" id="email" placeholder="Email" />
+    <input type="password" id="password" placeholder="Password" />
+    <button onclick="loginUser()">Login</button>
   </div>
 
-  <div id="refreshBtn" onclick="refreshIframe()">Refresh</div>
+  <!-- DASHBOARD -->
+  <div class="container" id="dashboard">
+    <h2>Cek Selisih</h2>
 
-  <script>
-    function getToday() {
-      const t = new Date();
-      const d = String(t.getDate()).padStart(2, '0');
-      const m = String(t.getMonth() + 1).padStart(2, '0');
-      const y = t.getFullYear();
-      return `${d}-${m}-${y}`;
-    }
+    <p>Saldo: <b id="saldoView">0</b></p>
 
-    function generateLink() {
-      const store = document.getElementById('kodeToko').value.trim();
-      if (!store) {
-        alert('Kode toko wajib diisi!');
-        return;
-      }
+    <input type="text" id="storeId" placeholder="Kode Toko (ex: L257)" />
+    <button onclick="cekSelisih()">Cek Selisih</button>
 
-      const today = getToday();
+    <iframe id="resultFrame" src=""></iframe>
+    <button onclick="logout()" style="background:#d9534f; color:white; margin-top:10px;">Logout</button>
+  </div>
 
-      const finalUrl = `https://app.alfastore.co.id/prd/api/rpt/laporan_so/csel_last_so_absolute_desc?storeId=${store}&dateSo=${today}`;
+  <button id="refreshBtn" onclick="refreshIframe()">⟳</button>
 
-      document.getElementById('resultFrame').src = finalUrl;
-    }
 
-    function refreshIframe() {
-      const frame = document.getElementById('resultFrame');
-      frame.src = frame.src;
-    }
-  </script>
+<script>
+// ✦ MASUKKAN DATA SUPABASE MILIKMU DI SINI ✦
+const SUPABASE_URL = "https://suwboogentimkkwcfgde.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN1d2Jvb2dlbnRpbWtrd2NmZ2RlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyNjI0NjMsImV4cCI6MjA3OTgzODQ2M30.DvwBP6rFFhQ-qJRoJGAWh-mAhHyoykKueZ3SboQcwtg";
+
+// LOGIN USER
+async function loginUser() {
+  const email = document.getElementById("email").value;
+  const pass = document.getElementById("password").value;
+
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/users?email=eq.${email}`, {
+    headers: { "apikey": SUPABASE_KEY }
+  });
+
+  const data = await res.json();
+
+  if (data.length === 0) {
+    alert("Email tidak ditemukan");
+    return;
+  }
+
+  if (data[0].password !== pass) {
+    alert("Password salah");
+    return;
+  }
+
+  localStorage.setItem("userid", data[0].id);
+  localStorage.setItem("saldo", data[0].saldo);
+
+  showDashboard(){
+  if(!localStorage.getItem("userid")) return;
+  document.getElementById("loginBox").style.display="none";
+  document.getElementById("dashboard").style.display="block";
+  document.getElementById("saldoView").innerText = localStorage.getItem("saldo");
+}();
+}
+
+function showDashboard() {
+  document.getElementById("loginBox").style.display = "none";
+  document.getElementById("dashboard").style.display = "block";
+  document.getElementById("saldoView").innerText = localStorage.getItem("saldo");
+}
+
+// CEK SELISIH
+async function cekSelisih() {
+  const userId = localStorage.getItem("userid");
+  let saldo = parseInt(localStorage.getItem("saldo"));
+  const storeId = document.getElementById("storeId").value;
+
+  if (!storeId) return alert("Isi kode toko!");
+
+  if (saldo <= 0) return alert("Saldo habis, silakan top up.");
+
+  saldo -= 1;
+  localStorage.setItem("saldo", saldo);
+  document.getElementById("saldoView").innerText = saldo;
+
+  await fetch(`${SUPABASE_URL}/rest/v1/users?id=eq.${userId}`, {
+    method: "PATCH",
+    headers: {
+      "apikey": SUPABASE_KEY,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ saldo: saldo })
+  });
+
+  const today = new Date();
+  const dd = String(today.getDate()).padStart(2, '0');
+  const mm = String(today.getMonth() + 1).padStart(2, '0');
+  const yyyy = today.getFullYear();
+  const dateSo = `${dd}-${mm}-${yyyy}`;
+
+  const url = `https://app.alfastore.co.id/prd/api/rpt/laporan_so/csel_last_so_absolute_desc?storeId=${storeId}&dateSo=${dateSo}`;
+
+  const iframe = document.getElementById("resultFrame");
+  iframe.src = url;
+  document.getElementById("refreshBtn").style.display = "block";
+}
+
+function refreshIframe() {
+  const iframe = document.getElementById("resultFrame");
+  iframe.src = iframe.src;
+}
+function logout(){
+  localStorage.clear();
+  location.reload();
+}
+</script>
+
 </body>
 </html>
