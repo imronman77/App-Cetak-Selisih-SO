@@ -1,172 +1,101 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Web App Cek Selisih Alfamart</title>
-<style>
- body {
-   font-family: Arial, sans-serif;
-   background: #f4f4f4;
-   margin: 0;
-   padding: 20px;
- }
- .container {
-   max-width: 600px;
-   margin: auto;
-   background: #ffffff;
-   padding: 20px;
-   border-radius: 12px;
-   box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
- }
- h2 {
-   text-align: center;
-   color: #333;
- }
- label {
-   font-weight: bold;
-   display: block;
-   margin-top: 15px;
- }
- input, select {
-   width: 100%;
-   padding: 12px;
-   margin-top: 6px;
-   border-radius: 8px;
-   border: 1px solid #ccc;
- }
- button {
-   width: 100%;
-   padding: 14px;
-   background: #ff3131;
-   border: none;
-   margin-top: 20px;
-   font-size: 18px;
-   color: #fff;
-   border-radius: 10px;
-   cursor: pointer;
- }
- button:hover {
-   background: #cc0000;
- }
- iframe {
-   width: 100%;
-   height: 480px;
-   border-radius: 10px;
-   margin-top: 20px;
-   border: 1px solid #ddd;
- }
- .link-box {
-   background: #eef5ff;
-   padding: 10px;
-   border-radius: 8px;
-   margin-top: 15px;
-   word-break: break-all;
- }
- .history-box {
-   margin-top: 20px;
-   background: #fff9e6;
-   padding: 12px;
-   border-radius: 10px;
- }
- .history-item {
-   margin-bottom: 6px;
-   font-size: 14px;
- }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SO Report Generator</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#1a73e8" />
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .container {
+      max-width: 480px;
+      margin: auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    input, button {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+    button {
+      background: #1a73e8;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #155fc0;
+    }
+    iframe {
+      width: 100%;
+      height: 500px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      margin-top: 15px;
+    }
+  </style>
 </head>
 <body>
-<div class="container">
-<h2>Cek Selisih Last SO</h2>
+  <div class="container">
+    <h2>SO Report Generator</h2>
 
-<label>Tanggal SO:</label>
-<input type="date" id="dateSo" />
+    <label>Tanggal Periode (DD-MM-YYYY)</label>
+    <input type="text" id="dateSo" placeholder="27-11-2025" />
 
-<label>Kode Toko (storeId):</label>
-<select id="storeId">
-  <option value="">-- Pilih Toko --</option>
-</select>
+    <label>Kode Toko</label>
+    <input type="text" id="storeId" placeholder="L257" />
 
-<button onclick="generateURL()">Cek Selisih</button>
+    <button onclick="generateLink()">Cek Selisih</button>
 
-<div id="output"></div>
-<div id="riwayat" class="history-box" style="display:none;"></div>
-</div>
+    <button id="refreshBtn" style="display:none; background:#28a745;" onclick="refreshIframe()">Refresh Tampilan</button>
 
-<script>
-// =================== Fitur: Generate Dropdown Toko ===================
-const storeDropdown = document.getElementById("storeId");
-for (let i = 1; i <= 999; i++) {
-  const id = `L${String(i).padStart(3, "0")}`;
-  const opt = document.createElement("option");
-  opt.value = id;
-  opt.textContent = id;
-  storeDropdown.appendChild(opt);
-}
+    <iframe id="resultFrame" src="" style="display:none;"></iframe>
+  </div>
 
-// =================== Fitur: Auto-set tanggal hari ini ===================
-const today = new Date();
-const yyyy = today.getFullYear();
-const mm = String(today.getMonth() + 1).padStart(2, "0");
-const dd = String(today.getDate()).padStart(2, "0");
-document.getElementById("dateSo").value = `${yyyy}-${mm}-${dd}`;
 
-// =================== Fitur: History ===================
-function saveHistory(url) {
-  let data = JSON.parse(localStorage.getItem("historySelisih") || "[]");
-  data.unshift({ url: url, time: new Date().toLocaleString() });
-  if (data.length > 10) data.pop();
-  localStorage.setItem("historySelisih", JSON.stringify(data));
-  renderHistory();
-}
+  <script>
+    function generateLink() {
+      const storeId = document.getElementById("storeId").value;
+      const dateSo = document.getElementById("dateSo").value;
 
-function renderHistory() {
-  const box = document.getElementById("riwayat");
-  const data = JSON.parse(localStorage.getItem("historySelisih") || "[]");
+      if (!storeId || !dateSo) {
+        alert("Store ID dan Tanggal harus diisi!");
+        return;
+      }
 
-  if (data.length === 0) {
-    box.style.display = "none";
-    return;
-  }
+      const url = `https://app.alfastore.co.id/prd/api/rpt/laporan_so/csel_last_so_absolute_desc?storeId=${storeId}&dateSo=${dateSo}`;
 
-  box.style.display = "block";
-  box.innerHTML = "<h4>Riwayat Pencarian</h4>" + data
-    .map(
-      (x) => `
-        <div class='history-item'>
-          <strong>${x.time}</strong><br>
-          <a href="${x.url}" target="_blank">${x.url}</a>
-        </div>`
-    )
-    .join("");
-}
-renderHistory();
+      const iframe = document.getElementById("resultFrame");
+      iframe.src = url;
+      iframe.style.display = "block";
 
-// =================== Fitur: Generate URL & tampilkan iframe ===================
-function generateURL() {
-  const dateSo = document.getElementById("dateSo").value;
-  const storeId = document.getElementById("storeId").value;
+      document.getElementById("refreshBtn").style.display = "block";
+    }
 
-  if (!dateSo || !storeId) {
-    alert("Harap isi tanggal dan pilih kode toko!");
-    return;
-  }
+    function refreshIframe() {
+      const iframe = document.getElementById("resultFrame");
+      iframe.src = iframe.src;
+    }
 
-  const parts = dateSo.split("-");
-  const finalDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
-
-  const finalURL = `https://app.alfastore.co.id/prd/api/rpt/laporan_so/csel_last_so_absolute_desc?storeId=${storeId}&dateSo=${finalDate}`;
-
-  document.getElementById("output").innerHTML = `
-    <div class='link-box'>
-      <strong>Link Hasil:</strong><br>
-      <a href="${finalURL}" target="_blank">${finalURL}</a>
-    </div>
-    <iframe src="${finalURL}"></iframe>
-  `;
-
-  saveHistory(finalURL);
-}
-</script>
+    // Register Service Worker
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("service-worker.js")
+          .then(() => console.log("SW Registered"))
+          .catch(err => console.log("SW Error", err));
+      });
+    }
+  </script>
 </body>
 </html>
