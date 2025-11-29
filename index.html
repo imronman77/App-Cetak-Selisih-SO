@@ -31,13 +31,17 @@
             margin: 5px;
             cursor: pointer;
         }
+        iframe {
+            width: 90%;
+            height: 600px;
+            margin-top: 30px;
+            border: 1px solid #ccc;
+        }
         footer {
-            position: fixed;
-            bottom: 0;
-            width: 100%;
             background-color: #eee;
             padding: 10px;
             font-weight: bold;
+            position: relative;
         }
     </style>
 </head>
@@ -50,6 +54,9 @@
     <br><br>
     <button onclick="cekLink()">Tolong cekin bos</button>
     <button onclick="location.reload()">Reload</button>
+
+    <!-- iframe akan menampilkan laman target -->
+    <div id="iframeContainer"></div>
 </main>
 
 <footer>Papa Pulang Mama Goyang</footer>
@@ -64,14 +71,15 @@ function cekLink() {
 
     const today = new Date();
     const tanggal = String(today.getDate()).padStart(2, '0');
-    const bulan = String(today.getMonth() + 1).padStart(2, '0'); // bulan mulai dari 0
+    const bulan = String(today.getMonth() + 1).padStart(2, '0');
     const tahun = today.getFullYear();
     const dateSo = `${tanggal}-${bulan}-${tahun}`;
 
     const url = `https://app.alfastore.co.id/prd/api/rpt/laporan_so/csel_last_so_absolute_desc?storeId=${kodeToko}&dateSo=${dateSo}`;
 
-    // Buka link di tab baru
-    window.open(url, '_blank');
+    // tampilkan laman di bawah tombol menggunakan iframe
+    const container = document.getElementById('iframeContainer');
+    container.innerHTML = `<iframe src="${url}" frameborder="0"></iframe>`;
 }
 </script>
 
