@@ -50,16 +50,16 @@
 <header>IT GABUT</header>
 
 <main>
-    <input type="text" id="kodeToko" placeholder="Kode Toko mu Boss">
+    <input type="text" id="kodeToko" placeholder="Kode Tokomu Boss">
     <br><br>
     <button onclick="cekLink()">Tolong cekin Boss</button>
-    <button onclick="reloadFrame()">Refresh dong Boss</button>
+    <button onclick="reloadFrame()">Refresh Boss</button>
 
     <!-- iframe akan menampilkan laman target -->
     <div id="iframeContainer"></div>
 </main>
 
-<footer>Gunakan dengan bijak ,jangan di report</footer>
+<footer>Gunakan dengan bijak</footer>
 
 <script>
 let lastUrl = ''; // menyimpan URL terakhir yang di-generate
@@ -67,3 +67,34 @@ let lastUrl = ''; // menyimpan URL terakhir yang di-generate
 function cekLink() {
     const kodeToko = document.getElementById('kodeToko').value.trim();
     if (!kodeToko) {
+        alert("Masukkan kode toko dulu ya!");
+        return;
+    }
+
+    const today = new Date();
+    const tanggal = String(today.getDate()).padStart(2, '0');
+    const bulan = String(today.getMonth() + 1).padStart(2, '0');
+    const tahun = today.getFullYear();
+    const dateSo = `${tanggal}-${bulan}-${tahun}`;
+
+    lastUrl = `https://app.alfastore.co.id/prd/api/rpt/laporan_so/csel_last_so_absolute_desc?storeId=${kodeToko}&dateSo=${dateSo}`;
+
+    showFrame(lastUrl);
+}
+
+function showFrame(url) {
+    const container = document.getElementById('iframeContainer');
+    container.innerHTML = `<iframe src="${url}" frameborder="0"></iframe>`;
+}
+
+function reloadFrame() {
+    if (!lastUrl) {
+        alert("Belum ada link yang digenerate!");
+        return;
+    }
+    showFrame(lastUrl);
+}
+</script>
+
+</body>
+</html>
