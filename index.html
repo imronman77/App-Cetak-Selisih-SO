@@ -1,170 +1,79 @@
-import { useState, useEffect } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, RefreshCw } from "lucide-react";
-import { motion } from "framer-motion";
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IT GABUT</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 20px;
+            font-size: 24px;
+        }
+        main {
+            margin: 50px 0;
+        }
+        input[type="text"] {
+            padding: 10px;
+            font-size: 16px;
+            width: 200px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        footer {
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            background-color: #eee;
+            padding: 10px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
 
-export default function App() {
-  const [username, setUsername] = useState("");
-  const [storedUser, setStoredUser] = useState(null);
-  const [kodeToko, setKodeToko] = useState("");
-  const [url, setUrl] = useState(null);
-  const [showQris, setShowQris] = useState(false);
-  const [qrisData, setQrisData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [paid, setPaid] = useState(false);
+<header>IT GABUT</header>
 
-  useEffect(() => {
-    const saved = localStorage.getItem("csel_user");
-    if (saved) setStoredUser(saved);
-  }, []);
+<main>
+    <input type="text" id="kodeToko" placeholder="Kode Toko">
+    <br><br>
+    <button onclick="cekLink()">Tolong cekin bos</button>
+    <button onclick="location.reload()">Reload</button>
+</main>
 
-  useEffect(() => {
-    // when user logged in, prefill kodeToko with their username and lock it
-    if (storedUser) setKodeToko(storedUser);
-  }, [storedUser]);
+<footer>Papa Pulang Mama Goyang</footer>
 
-  const handleRegisterLogin = () => {
-    if (!username) return;
-    const upper = username.toUpperCase();
-    localStorage.setItem("csel_user", upper);
-    setStoredUser(upper);
-  };
-
-  // Generate QRIS invoice via backend API (Xendit)
-  const handleGenerate = async () => {
-    if (!kodeToko) return;
-    setLoading(true);
+<script>
+function cekLink() {
+    const kodeToko = document.getElementById('kodeToko').value.trim();
+    if (!kodeToko) {
+        alert("Masukkan kode toko dulu ya!");
+        return;
+    }
 
     const today = new Date();
-    const formatted = today.toLocaleDateString("id-ID").replaceAll("/", "-");
-    const final = `https://app.alfastore.co.id/prd/api/rpt/laporan_so/csel_last_so_absolute_desc?storeId=${kodeToko.toUpperCase()}&dateSo=${formatted}`;
-    setUrl(final);
+    const tanggal = String(today.getDate()).padStart(2, '0');
+    const bulan = String(today.getMonth() + 1).padStart(2, '0'); // bulan mulai dari 0
+    const tahun = today.getFullYear();
+    const dateSo = `${tanggal}-${bulan}-${tahun}`;
 
-    try {
-      const res = await fetch('/api/create-xendit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user: storedUser, amount: 5000, storeId: kodeToko.toUpperCase() })
-      });
-      const data = await res.json();
-      // expected { qrImage, paymentId }
-      setQrisData(data);
-      setShowQris(true);
-      // start polling will be handled by effect below
-    } catch (err) {
-      console.error(err);
-      alert('Gagal membuat invoice. Coba lagi.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    const url = `https://app.alfastore.co.id/prd/api/rpt/laporan_so/csel_last_so_absolute_desc?storeId=${kodeToko}&dateSo=${dateSo}`;
 
-  // Polling to check payment status (fallback if webhook delayed)
-  useEffect(() => {
-    if (!qrisData?.paymentId) return;
-    let interval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/payment-status?paymentId=${qrisData.paymentId}`);
-        const s = await res.json();
-        // expected { status: 'PAID' | 'PENDING' }
-        if (s.status === 'PAID') {
-          setPaid(true);
-          setShowQris(false);
-          clearInterval(interval);
-        }
-      } catch (e) {
-        console.error('status check error', e);
-      }
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [qrisData]);
-
-  useEffect(() => {
-    if (paid && url) {
-      // show the iframe automatically when paid
-      setShowQris(false);
-    }
-  }, [paid, url]);
-
-  const handleRefresh = () => {
-    if (url) setUrl(url + "");
-  };
-
-  if (!storedUser) {
-    return (
-      <div className="h-screen flex items-center justify-center p-4">
-        <Card className="p-6 w-full max-w-sm shadow-xl rounded-2xl">
-          <CardContent>
-            <h2 className="text-xl font-bold mb-4 text-center">Login / Registrasi</h2>
-            <Input
-              placeholder="Masukkan Kode Toko"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="mb-4"
-            />
-            <Button className="w-full" onClick={handleRegisterLogin}>Lanjut</Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-4 pb-20">
-      <Card className="p-6 max-w-xl mx-auto rounded-2xl shadow-xl mb-6">
-        <CardContent>
-          <h2 className="text-xl font-bold mb-4">Cetak Selisih</h2>
-          <p className="text-sm opacity-70 mb-3">User: {storedUser}</p>
-          <Input
-            placeholder="Masukkan Kode Toko"
-            value={kodeToko}
-            onChange={(e) => setKodeToko(e.target.value)}
-            disabled={true}
-            className="mb-3"
-          />
-          <Button className="w-full" onClick={handleGenerate} disabled={loading || paid}>
-            {loading ? <Loader2 className="animate-spin" /> : paid ? "Sudah Terbayar" : "Cek Selisih (Rp 5.000)"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {showQris && qrisData && (
-        <motion.div className="max-w-xl mx-auto p-6 text-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <h3 className="font-semibold mb-3">Silahkan bayar Rp 5.000</h3>
-          <img src={qrisData.qrImage} alt="QRIS Pembayaran" className="w-64 mx-auto rounded-xl shadow" />
-          <p className="text-sm opacity-70 mt-3">Menunggu konfirmasi otomatis... (webhook)</p>
-          <Button className="mt-4 w-full" onClick={async () => {
-            // fallback: manual status check
-            try {
-              const res = await fetch(`/api/payment-status?paymentId=${qrisData.paymentId}`);
-              const s = await res.json();
-              if (s.status === 'PAID') {
-                setPaid(true);
-                setShowQris(false);
-              } else alert('Belum terbayar');
-            } catch (e) { alert('Error cek status'); }
-          }}>Cek Sekarang</Button>
-        </motion.div>
-      )}
-
-      {paid && url && (
-        <motion.div className="max-w-4xl mx-auto" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <iframe src={url} className="w-full h-[70vh] rounded-xl shadow-lg"></iframe>
-        </motion.div>
-      )}
-
-      {url && (
-        <motion.button
-          onClick={handleRefresh}
-          className="fixed bottom-6 right-6 p-4 rounded-full shadow-xl bg-white"
-          whileTap={{ scale: 0.85 }}
-        >
-          <RefreshCw />
-        </motion.button>
-      )}
-    </div>
-  );
+    // Buka link di tab baru
+    window.open(url, '_blank');
 }
+</script>
+
+</body>
+</html>
