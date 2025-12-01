@@ -1,100 +1,216 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IT GABUT</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            margin: 0;
-            padding: 0;
-        }
-        header {
-            background-color: #4CAF50;
-            color: white;
-            padding: 20px;
-            font-size: 24px;
-        }
-        main {
-            margin: 50px 0;
-        }
-        input[type="text"] {
-            padding: 10px;
-            font-size: 16px;
-            width: 200px;
-        }
-        button {
-            padding: 10px 20px;
-            font-size: 16px;
-            margin: 5px;
-            cursor: pointer;
-        }
-        iframe {
-            width: 90%;
-            height: 600px;
-            margin-top: 30px;
-            border: 1px solid #ccc;
-        }
-        footer {
-            background-color: #eee;
-            padding: 10px;
-            font-weight: bold;
-            position: relative;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Cetak Selisih SO Terakhir</title>
+  <style>
+    :root{--accent:#0b74de;--bg:#f6f7fb}
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;background:var(--bg);margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+    .card{width:100%;max-width:900px;background:white;border-radius:12px;box-shadow:0 6px 24px rgba(10,20,40,0.08);padding:20px;overflow:hidden}
+    h1{margin:0 0 8px;font-size:20px}
+    p.lead{margin:0 0 16px;color:#475569}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
+    input[type="text"]{flex:1;padding:12px;border-radius:8px;border:1px solid #e6e9ef;font-size:16px}
+    button.primary{background:var(--accent);color:white;padding:12px 16px;border-radius:8px;border:0;font-weight:600;cursor:pointer}
+    button.ghost{background:transparent;padding:8px 12px;border-radius:8px;border:1px solid #e6e9ef;cursor:pointer}
+    .note{margin-top:12px;color:#6b7280;font-size:13px}
+    #frameWrap{margin-top:18px;border-radius:8px;overflow:hidden;border:1px solid #e6e9ef;display:none}
+    iframe{width:100%;height:700px;border:0}
+    .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(2,6,23,0.5);z-index:60}
+    .modalCard{background:white;padding:18px;border-radius:10px;max-width:420px;width:92%;box-shadow:0 12px 40px rgba(2,6,23,0.3)}
+    .center{display:flex;align-items:center;justify-content:center}
+    .success{color:green;font-weight:700}
+    @media (max-width:600px){ iframe{height:560px} }
+  </style>
 </head>
 <body>
+  <div class="card" role="main" aria-labelledby="title">
+    <h1 id="title">Aplikasi Cetak Selisih</h1>
+    <p class="lead">Masukkan <strong>kode toko</strong> Anda lalu lakukan pembayaran Rp 5.000 untuk menampilkan hasil cetak selisih.</p>
 
-<header>IT GABUT</header>
+    <div class="row" style="margin-bottom:8px">
+      <input id="storeInput" type="text" placeholder="Masukkan kode toko (contoh: L257)" aria-label="Kode toko" />
+      <button id="payBtn" class="primary">Bayar 5ribu untuk cek selisih mu</button>
+      <button id="previewBtn" class="ghost" title="Hanya preview (tidak bayar)">Preview (tanpa bayar)</button>
+    </div>
 
-<main>
-    <input type="text" id="kodeToko" placeholder="Kode Tokomu Boss">
-    <br><br>
-    <button onclick="cekLink()">Tolong cekin Boss</button>
-    <button onclick="reloadFrame()">Refresh Boss</button>
+    <div class="note">
+      - Pembayaran demo: akan memproses di browser (sandbox).<br>
+      - Untuk produksi: ganti flow demo dengan provider pembayaran (Midtrans / Xendit / dsb). Petunjuk singkat ada di komentar kode.
+    </div>
 
-    <!-- iframe akan menampilkan laman target -->
-    <div id="iframeContainer"></div>
-</main>
+    <div id="frameWrap" aria-live="polite">
+      <div style="padding:8px;background:#f8fafc;border-bottom:1px solid #eef2ff;display:flex;align-items:center;gap:12px">
+        <div style="font-weight:700">Hasil Cetak Selisih</div>
+        <div id="meta" style="color:#374151;font-size:13px"></div>
+        <div style="margin-left:auto">
+          <button id="closeFrame" class="ghost">Tutup</button>
+        </div>
+      </div>
+      <iframe id="resultFrame" src=""></iframe>
+    </div>
+  </div>
 
-<footer>Gunakan dengan bijak</footer>
+  <!-- Modal pembayaran (simple) -->
+  <div id="payModal" style="display:none" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modalCard" role="document">
+      <h3>Pembayaran — Rp 5.000</h3>
+      <p id="modalStore" style="color:#374151"></p>
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button id="confirmPay" class="primary" style="flex:1">Bayar Sekarang (Demo)</button>
+        <button id="cancelPay" class="ghost">Batal</button>
+      </div>
+      <div id="payStatus" style="margin-top:12px;color:#6b7280;font-size:14px"></div>
+      <div style="margin-top:10px;font-size:13px;color:#6b7280">
+        Catatan: ini adalah demo. Untuk menghubungkan pembayaran nyata, ganti proses `simulatePayment()` dengan integrasi provider (lihat komentar di kode).
+      </div>
+    </div>
+  </div>
 
-<script>
-let lastUrl = ''; // menyimpan URL terakhir yang di-generate
-
-function cekLink() {
-    const kodeToko = document.getElementById('kodeToko').value.trim();
-    if (!kodeToko) {
-        alert("Masukkan kode toko dulu ya!");
-        return;
+  <script>
+    // ---------- Utility ----------
+    function formatDateDDMMYYYY(d){
+      const day = String(d.getDate()).padStart(2,'0');
+      const month = String(d.getMonth()+1).padStart(2,'0');
+      const year = d.getFullYear();
+      return `${day}-${month}-${year}`;
     }
 
-    const today = new Date();
-    const tanggal = String(today.getDate()).padStart(2, '0');
-    const bulan = String(today.getMonth() + 1).padStart(2, '0');
-    const tahun = today.getFullYear();
-    const dateSo = `${tanggal}-${bulan}-${tahun}`;
-
-    lastUrl = `https://app.alfastore.co.id/prd/api/rpt/laporan_so/csel_last_so_absolute_desc?storeId=${kodeToko}&dateSo=${dateSo}`;
-
-    showFrame(lastUrl);
-}
-
-function showFrame(url) {
-    const container = document.getElementById('iframeContainer');
-    container.innerHTML = `<iframe src="${url}" frameborder="0"></iframe>`;
-}
-
-function reloadFrame() {
-    if (!lastUrl) {
-        alert("Belum ada link yang digenerate!");
-        return;
+    function sanitizeStoreId(s){
+      return String(s||'').trim();
     }
-    showFrame(lastUrl);
-}
-</script>
 
+    // ---------- DOM ----------
+    const storeInput = document.getElementById('storeInput');
+    const payBtn = document.getElementById('payBtn');
+    const previewBtn = document.getElementById('previewBtn');
+    const payModal = document.getElementById('payModal');
+    const modalStore = document.getElementById('modalStore');
+    const confirmPay = document.getElementById('confirmPay');
+    const cancelPay = document.getElementById('cancelPay');
+    const payStatus = document.getElementById('payStatus');
+    const frameWrap = document.getElementById('frameWrap');
+    const resultFrame = document.getElementById('resultFrame');
+    const meta = document.getElementById('meta');
+    const closeFrame = document.getElementById('closeFrame');
+
+    // ---------- Payment (Demo) ----------
+    // simulatePayment simulates a payment flow and resolves when "paid".
+    // Replace this function with real provider integration for production.
+    function simulatePayment({storeId, amountRp}){
+      payStatus.textContent = 'Memproses pembayaran...';
+      return new Promise((resolve, reject) => {
+        // simulated latency
+        setTimeout(() => {
+          // 95% success chance for demo
+          if (Math.random() < 0.95) {
+            payStatus.textContent = '';
+            resolve({status:'paid', transactionId: 'DEMO-' + Date.now()});
+          } else {
+            payStatus.textContent = '';
+            reject(new Error('Pembayaran gagal (simulated)'));
+          }
+        }, 1400);
+      });
+    }
+
+    /* -------- NOTES: Integrasi pembayaran nyata ----------
+       Contoh pendekatan (ringkasan):
+       1) Midtrans Snap:
+          - Server-side: panggil Midtrans API untuk membuat transaction token (snapToken) menggunakan server key.
+          - Client: muat script Snap dan panggil window.snap.pay(snapToken, {...callbacks...}).
+       2) Xendit/Midtrans/Stripe ili lainnya: ikuti dokumentasi provider.
+       3) Pastikan server Anda memvalidasi pembayaran (webhook / verify) sebelum menampilkan data sensitif.
+       ----------------------------------------------------- */
+
+    // ---------- Iframe builder ----------
+    const baseUrl = 'https://app.alfastore.co.id/prd/api/rpt/laporan_so/csel_last_so_absolute_desc';
+
+    function buildReportUrl(storeId){
+      const now = new Date();
+      // If you need Asia/Jakarta date specifically regardless of client timezone,
+      // you would request the date from your server set to Asia/Jakarta.
+      const dateSo = formatDateDDMMYYYY(now);
+      const sid = encodeURIComponent(storeId);
+      return `${baseUrl}?storeId=${sid}&dateSo=${dateSo}`;
+    }
+
+    function showIframeForStore(storeId){
+      const url = buildReportUrl(storeId);
+      resultFrame.src = url;
+      meta.textContent = `Store: ${storeId} • Tanggal: ${formatDateDDMMYYYY(new Date())}`;
+      frameWrap.style.display = 'block';
+      // scroll into view nicely
+      frameWrap.scrollIntoView({behavior:'smooth'});
+    }
+
+    // ---------- Events ----------
+    payBtn.addEventListener('click', () => {
+      const sid = sanitizeStoreId(storeInput.value);
+      if (!sid) return alert('Mohon isi kode toko terlebih dahulu.');
+      modalStore.textContent = `Kode toko: ${sid} — Nominal: Rp 5.000`;
+      payModal.style.display = 'flex';
+      payModal.setAttribute('aria-hidden','false');
+    });
+
+    cancelPay.addEventListener('click', () => {
+      payModal.style.display = 'none';
+      payModal.setAttribute('aria-hidden','true');
+      payStatus.textContent = '';
+    });
+
+    confirmPay.addEventListener('click', async () => {
+      const sid = sanitizeStoreId(storeInput.value);
+      if (!sid) return alert('Kode toko invalid.');
+      confirmPay.disabled = true;
+      cancelPay.disabled = true;
+      try{
+        const receipt = await simulatePayment({storeId: sid, amountRp:5000});
+        // pembelian sukses
+        payModal.style.display = 'none';
+        payModal.setAttribute('aria-hidden','true');
+        confirmPay.disabled = false;
+        cancelPay.disabled = false;
+        // tampilkan iframe
+        showIframeForStore(sid);
+        // Anda bisa juga mengirim detail transaksi ke server di sini:
+        // fetch('/api/record-payment', {method:'POST', body: JSON.stringify({storeId: sid, receipt})})
+      }catch(err){
+        alert('Pembayaran gagal: ' + (err.message || err));
+        confirmPay.disabled = false;
+        cancelPay.disabled = false;
+      } finally {
+        payStatus.textContent = '';
+      }
+    });
+
+    previewBtn.addEventListener('click', () => {
+      // Tombol preview agar developer/admin bisa cek output tanpa bayar
+      const sid = sanitizeStoreId(storeInput.value);
+      if (!sid) return alert('Mohon isi kode toko untuk preview.');
+      if (!confirm('Ini preview tanpa pembayaran. Lanjutkan?')) return;
+      showIframeForStore(sid);
+    });
+
+    closeFrame.addEventListener('click', () => {
+      frameWrap.style.display = 'none';
+      resultFrame.src = '';
+    });
+
+    // UX: enter key on input triggers pay
+    storeInput.addEventListener('keydown', (ev) => {
+      if(ev.key === 'Enter') payBtn.click();
+    });
+
+    // Optional: load storeId from query param ?store=L257
+    (function initFromQuery(){
+      try{
+        const qp = new URLSearchParams(location.search);
+        const s = qp.get('store') || qp.get('storeId');
+        if (s) storeInput.value = s;
+      }catch(e){}
+    })();
+  </script>
 </body>
 </html>
